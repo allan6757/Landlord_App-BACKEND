@@ -21,3 +21,19 @@ def tenant_required(f):
             return {'error': 'Tenant access required'}, 403
         return f(*args, **kwargs)
     return decorated_function
+
+def can_manage_property(user, property):
+    if user.role == 'admin':
+        return True
+    elif user.role == 'landlord':
+        return property.landlord_id == user.id
+    return False
+
+def can_view_property(user, property):
+    if user.role == 'admin':
+        return True
+    elif user.role == 'landlord':
+        return property.landlord_id == user.id
+    elif user.role == 'tenant':
+        return property.tenant_id == user.id
+    return False
