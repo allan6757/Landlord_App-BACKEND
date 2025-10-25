@@ -19,19 +19,23 @@ class Register(Resource):
         if User.query.filter_by(email=data['email']).first():
             return {'error': 'User with this email already exists'}, 400
 
-        user = User(
-            email=data['email'],
-            first_name=data['first_name'],
-            last_name=data['last_name']
-        )
-        user.set_password(data['password'])
+        try:
+            user = User(
+                email=data['email'],
+                first_name=data['first_name'],
+                last_name=data['last_name']
+            )
+            user.set_password(data['password'])
 
-        db.session.add(user)
-        db.session.commit()
+            db.session.add(user)
+            db.session.commit()
 
-        profile = UserProfile(user_id=user.id, role=UserRole.TENANT)
-        db.session.add(profile)
-        db.session.commit()
+            profile = UserProfile(user_id=user.id, role=UserRole.TENANT)
+            db.session.add(profile)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            return {'error': 'Registration failed'}, 500
 
         access_token = create_access_token(identity=user.id)
 
@@ -55,8 +59,11 @@ class Login(Resource):
             if not user.is_active:
                 return {'error': 'Account is deactivated'}, 403
 
-            user.update_last_login()
-            db.session.commit()
+            try:
+                user.update_last_login()
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
             access_token = create_access_token(identity=user.id)
 
@@ -70,6 +77,9 @@ class Login(Resource):
 class Profile(Resource):
     @jwt_required()
     def get(self):
-        user_id = get_jwt_identity()
-        user = User.query.get_or_404(user_id)
-        return {'user': user.to_dict()}, 200
+        try:
+            user_id = get_jwt_identity()
+            user = User.query.get_or_404(user_id)
+            return {'user': user.to_dict()}, 200
+        except Exception:
+            return {'error': 'Failed to retrieve profile'}, 500
