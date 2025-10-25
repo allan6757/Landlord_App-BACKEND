@@ -1,40 +1,45 @@
-import unittest
-from app import create_app
-from app.models import db, User
+import pytest
+from app import create_app, db
+from app.models.user import User, UserProfile
 
-class AuthTestCase(unittest.TestCase):
-    def setUp(self):
-        self.app = create_app()
-        self.app.config['TESTING'] = True
-        self.client = self.app.test_client()
-        
-        with self.app.app_context():
-            db.create_all()
-    
-    def tearDown(self):
-        with self.app.app_context():
-            db.drop_all()
-    
-    def test_register(self):
-        response = self.client.post('/api/auth/register', json={
-            'email': 'test@example.com',
-            'password': 'password123',
-            'first_name': 'Test',
-            'last_name': 'User',
-            'role': 'tenant'
-        })
-        self.assertEqual(response.status_code, 201)
-    
-    def test_login(self):
-        # Create user first
-        with self.app.app_context():
-            user = User(email='test@example.com', first_name='Test', last_name='User')
-            user.set_password('password123')
-            db.session.add(user)
-            db.session.commit()
-        
-        response = self.client.post('/api/auth/login', json={
-            'email': 'test@example.com',
-            'password': 'password123'
-        })
-        self.assertEqual(response.status_code, 200)
+@pytest.fixture
+def app():
+    app = create_app()
+    app.config['TESTING'] = True
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+
+    with app.app_context():
+        db.create_all()
+        yield app
+        db.drop_all()
+
+@pytest.fixture
+def client(app):
+    return app.test_client()
+
+def test_user_registration(client):
+    response = client.post('/api/auth/register', json={
+        'email': 'test@example.com',
+        'password': 'password123',
+        'first_name': 'John',
+        'last_name': 'Doe'
+    })
+    assert response.status_code == 201
+    assert 'access_token' in response.json
+
+def test_user_login(client):
+    # First register
+    client.post('/api/auth/register', json={
+        'email': 'test@example.com',
+        'password': 'password123',
+        'first_name': 'John',
+        'last_name': 'Doe'
+    })
+
+    # Then login
+    response = client.post('/api/auth/login', json={
+        'email': 'test@example.com',
+        'password': 'password123'
+    })
+    assert response.status_code == 200
+    assert 'access_token' in response.json
