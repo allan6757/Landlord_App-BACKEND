@@ -1,19 +1,28 @@
-from flask import Blueprint, jsonify
+from flask_restful import Resource
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import User
-from app.schemas.user import UserSchema
+from app import db
+from app.models.user import User, UserRole
 
-users_bp = Blueprint('users', __name__, url_prefix='/api/users')
+class UserList(Resource):
+    @jwt_required()
+    def get(self):
+        current_user_id = get_jwt_identity()
+        current_user = User.query.get_or_404(current_user_id)
 
-@users_bp.route('/profile', methods=['GET'])
-@jwt_required()
-def get_profile():
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    return UserSchema().dump(user)
+        if current_user.profile.role != UserRole.ADMIN:
+            return {'error': 'Admin access required'}, 403
 
-@users_bp.route('/', methods=['GET'])
-@jwt_required()
-def get_users():
-    users = User.query.all()
-    return UserSchema(many=True).dump(users)
+        users = User.query.all()
+        return {'users': [user.to_dict() for user in users]}, 200
+
+class UserDetail(Resource):
+    @jwt_required()
+    def get(self, user_id):
+        current_user_id = get_jwt_identity()
+        current_user = User.query.get_or_404(current_user_id)
+        user = User.query.get_or_404(user_id)
+
+        if current_user.profile.role != UserRole.ADMIN and current_user.id != user.id:
+            return {'error': 'Access denied'}, 403
+
+        return {'user': user.to_dict()}, 200
