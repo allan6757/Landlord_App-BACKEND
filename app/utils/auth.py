@@ -1,23 +1,20 @@
-from functools import wraps
-from flask_jwt_extended import get_jwt_identity
-from app.models import User
+from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
+from app.models.user import User
 
-def landlord_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
+def get_current_user():
+    try:
+        verify_jwt_in_request()
         user_id = get_jwt_identity()
-        user = User.query.get(user_id)
-        if not user or user.role != 'landlord':
-            return {'error': 'Landlord access required'}, 403
-        return f(*args, **kwargs)
-    return decorated_function
+        return User.query.get(user_id)
+    except:
+        return None
 
-def tenant_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        user_id = get_jwt_identity()
-        user = User.query.get(user_id)
-        if not user or user.role != 'tenant':
-            return {'error': 'Tenant access required'}, 403
-        return f(*args, **kwargs)
-    return decorated_function
+def require_roles(roles):
+    def decorator(fn):
+        def wrapper(*args, **kwargs):
+            current_user = get_current_user()
+            if not current_user or current_user.profile.role.value not in roles:
+                return {'error': 'Insufficient permissions'}, 403
+            return fn(*args, **kwargs)
+        return wrapper
+    return decorator
