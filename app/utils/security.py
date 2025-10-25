@@ -6,10 +6,10 @@ def validate_email(email):
     return re.match(pattern, email) is not None
 
 def validate_phone(phone):
-    pattern = r'^\+?[1-9]\d{1,14}$'
+    pattern = r'^\+?1?\d{9,15}$'
     return re.match(pattern, phone) is not None
 
-def sanitize_input(data):
-    if isinstance(data, str):
-        return data.strip()
-    return data
+def sanitize_input(text):
+    if not text:
+        return text
+    return text.strip()
