@@ -19,10 +19,6 @@ class UserProfile(BaseModel):
     emergency_contact = db.Column(db.String(100))
 
     user = db.relationship('User', back_populates='profile', uselist=False)
-    owned_properties = db.relationship('Property', back_populates='landlord', foreign_keys='Property.landlord_id')
-    tenant_properties = db.relationship('Property', back_populates='tenant', foreign_keys='Property.tenant_id')
-    sent_payments = db.relationship('Payment', back_populates='tenant_user', foreign_keys='Payment.tenant_id')
-    received_payments = db.relationship('Payment', back_populates='landlord_user', foreign_keys='Payment.landlord_id')
 
     def to_dict(self):
         return {

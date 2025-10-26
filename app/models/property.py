@@ -36,11 +36,12 @@ class Property(BaseModel):
     square_feet = db.Column(db.Integer)
     amenities = db.Column(db.Text)
 
-    landlord_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    tenant_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    landlord_id = db.Column(db.Integer, db.ForeignKey('user_profiles.id'), nullable=False)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('user_profiles.id'))
 
-    landlord = db.relationship('User', foreign_keys=[landlord_id], backref='owned_properties')
-    tenant = db.relationship('User', foreign_keys=[tenant_id], backref='tenant_properties')
+    landlord = db.relationship('UserProfile', foreign_keys=[landlord_id], backref='owned_properties')
+    tenant = db.relationship('UserProfile', foreign_keys=[tenant_id], backref='tenant_properties')
+    conversations = db.relationship('Conversation', back_populates='property')
 
     def to_dict(self):
         return {
