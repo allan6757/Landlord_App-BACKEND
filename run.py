@@ -1,14 +1,10 @@
+import os
 from app import create_app
-from app.models import db
-from flask_migrate import Migrate
-from flask_jwt_extended import JWTManager
+from app.config import DevelopmentConfig, ProductionConfig
 
-app = create_app()
-db.init_app(app)
-migrate = Migrate(app, db)
-jwt = JWTManager(app)
+config = ProductionConfig if os.environ.get('FLASK_ENV') == 'production' else DevelopmentConfig
+app = create_app(config)
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-    app.run(debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=config.DEBUG)

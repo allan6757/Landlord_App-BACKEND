@@ -6,8 +6,10 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
     
     # Database Configuration
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'postgresql://rental_user:rental_password@localhost:5432/rental_platform'
+    database_url = os.environ.get('DATABASE_URL')
+    if database_url and database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    SQLALCHEMY_DATABASE_URI = database_url or 'postgresql://rental_user:rental_password@localhost:5432/rental_platform'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # JWT Configuration
@@ -19,7 +21,7 @@ class Config:
     BCRYPT_LOG_ROUNDS = 12
     
     # CORS Configuration
-    CORS_ORIGINS = os.environ.get('CORS_ORIGINS', 'http://localhost:3000').split(',')
+    CORS_ORIGINS = os.environ.get('CORS_ORIGINS', '*').split(',')
     
     # MPesa Configuration (for payments)
     MPESA_CONSUMER_KEY = os.environ.get('MPESA_CONSUMER_KEY', '')
@@ -40,6 +42,18 @@ class DevelopmentConfig(Config):
 
 class ProductionConfig(Config):
     DEBUG = False
+    BCRYPT_LOG_ROUNDS = 13
+    
+    @classmethod
+    def init_app(cls, app):
+        Config.init_app(app)
+        
+        # Log to stderr
+        import logging
+        from logging import StreamHandler
+        file_handler = StreamHandler()
+        file_handler.setLevel(logging.INFO)
+        app.logger.addHandler(file_handler)
     
 class TestingConfig(Config):
     TESTING = True
