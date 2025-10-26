@@ -23,10 +23,7 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
     bcrypt.init_app(app)
     jwt.init_app(app)
-    cors.init_app(app, 
-                  origins=app.config['CORS_ORIGINS'],
-                  allow_headers=['Content-Type', 'Authorization'],
-                  methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
+    CORS(app, origins=['https://landlord-app-frontend.vercel.app'], supports_credentials=True)
     
     # Register resources
     from app.resources.auth import Register, Login, Profile
