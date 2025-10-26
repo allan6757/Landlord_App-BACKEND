@@ -56,6 +56,14 @@ def create_app(config_class=Config):
     
     api.init_app(app)
     
+    # Manual CORS headers
+    @app.after_request
+    def after_request(response):
+        response.headers.add('Access-Control-Allow-Origin', 'https://landlord-app-frontend.vercel.app')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        return response
+    
     # Health check endpoint
     @app.route('/health')
     def health_check():
