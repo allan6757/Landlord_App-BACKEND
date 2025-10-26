@@ -64,6 +64,11 @@ def create_app(config_class=Config):
         response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
         return response
     
+    # Handle preflight OPTIONS requests
+    @app.route('/api/<path:path>', methods=['OPTIONS'])
+    def handle_options(path):
+        return '', 200
+    
     # Health check endpoint
     @app.route('/health')
     def health_check():
