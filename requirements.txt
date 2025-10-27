@@ -29,7 +29,6 @@ sendgrid==6.11.0
 
 # Image Upload (Cloudinary - Required for Capstone)
 cloudinary==1.36.0
-Pillow==10.1.0
 
 # API Documentation (Swagger - Required for Capstone)
 flasgger==0.9.7.1
