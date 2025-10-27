@@ -1,4 +1,4 @@
 from .user import UserSchema
-from .property import PropertySchema, PropertyCreateSchema
-from .payment import PaymentSchema, PaymentCreateSchema
-from .chat import ChatSchema, ChatCreateSchema
+from .property import PropertySchema
+from .payment import PaymentSchema
+from .chat import ConversationSchema, MessageSchema
