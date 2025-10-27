@@ -1,6 +1,7 @@
 from flask import request
 from flask_restful import Resource
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from sqlalchemy.exc import SQLAlchemyError
 from app import db
 from app.models.user import User, UserProfile, UserRole
 from app.schemas.user import UserSchema, LoginSchema
@@ -11,6 +12,8 @@ login_schema = LoginSchema()
 class Register(Resource):
     def post(self):
         data = request.get_json()
+        if not data:
+            return {'error': 'No JSON data provided'}, 400
 
         errors = user_schema.validate(data)
         if errors:
@@ -26,14 +29,13 @@ class Register(Resource):
                 last_name=data['last_name']
             )
             user.set_password(data['password'])
-
             db.session.add(user)
-            db.session.commit()
+            db.session.flush()
 
             profile = UserProfile(user_id=user.id, role=UserRole.TENANT)
             db.session.add(profile)
             db.session.commit()
-        except Exception:
+        except SQLAlchemyError:
             db.session.rollback()
             return {'error': 'Registration failed'}, 500
 
@@ -48,6 +50,8 @@ class Register(Resource):
 class Login(Resource):
     def post(self):
         data = request.get_json()
+        if not data:
+            return {'error': 'No JSON data provided'}, 400
 
         errors = login_schema.validate(data)
         if errors:
@@ -62,7 +66,7 @@ class Login(Resource):
             try:
                 user.update_last_login()
                 db.session.commit()
-            except Exception:
+            except SQLAlchemyError:
                 db.session.rollback()
 
             access_token = create_access_token(identity=user.id)
@@ -81,5 +85,5 @@ class Profile(Resource):
             user_id = get_jwt_identity()
             user = User.query.get_or_404(user_id)
             return {'user': user.to_dict()}, 200
-        except Exception:
+        except SQLAlchemyError:
             return {'error': 'Failed to retrieve profile'}, 500
