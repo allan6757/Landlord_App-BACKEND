@@ -31,12 +31,17 @@ class Config:
     MPESA_BUSINESS_SHORTCODE = os.environ.get('MPESA_BUSINESS_SHORTCODE', '174379')
     MPESA_PASSKEY = os.environ.get('MPESA_PASSKEY', '')
     
-    # Email Configuration (for notifications)
-    MAIL_SERVER = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
-    MAIL_PORT = int(os.environ.get('MAIL_PORT', 587))
-    MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS', 'True').lower() == 'true'
-    MAIL_USERNAME = os.environ.get('MAIL_USERNAME', '')
-    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD', '')
+    # SendGrid Email Configuration (required for capstone)
+    SENDGRID_API_KEY = os.environ.get('SENDGRID_API_KEY', '')
+    SENDGRID_FROM_EMAIL = os.environ.get('SENDGRID_FROM_EMAIL', 'noreply@rentalplatform.com')
+    
+    # Cloudinary Configuration (required for capstone)
+    CLOUDINARY_CLOUD_NAME = os.environ.get('CLOUDINARY_CLOUD_NAME', '')
+    CLOUDINARY_API_KEY = os.environ.get('CLOUDINARY_API_KEY', '')
+    CLOUDINARY_API_SECRET = os.environ.get('CLOUDINARY_API_SECRET', '')
+    
+    # Frontend URL (for email links)
+    FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
 
 class DevelopmentConfig(Config):
     DEBUG = True

@@ -24,6 +24,16 @@ requests==2.31.0
 gunicorn==21.2.0
 Werkzeug==2.3.7
 
+# Email Service (SendGrid - Required for Capstone)
+sendgrid==6.11.0
+
+# Image Upload (Cloudinary - Required for Capstone)
+cloudinary==1.36.0
+Pillow==10.1.0
+
+# API Documentation (Swagger - Required for Capstone)
+flasgger==0.9.7.1
+
 # Testing
 pytest==7.4.2
 pytest-flask==1.2.0
