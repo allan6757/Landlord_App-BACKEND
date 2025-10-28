@@ -4,8 +4,6 @@
 import os
 import cloudinary
 import cloudinary.uploader
-from PIL import Image
-from io import BytesIO
 
 class CloudinaryService:
     """
@@ -28,81 +26,36 @@ class CloudinaryService:
             os.environ.get('CLOUDINARY_API_SECRET')
         ])
     
-    def optimize_image(self, image_file, max_width=1200, max_height=1200, quality=85):
-        """
-        Optimize image before uploading (resize and compress)
-        
-        Args:
-            image_file: File object or file path
-            max_width: Maximum width in pixels
-            max_height: Maximum height in pixels
-            quality: JPEG quality (1-100)
-            
-        Returns:
-            BytesIO object with optimized image
-        """
-        try:
-            # Open image with PIL
-            img = Image.open(image_file)
-            
-            # Convert RGBA to RGB if necessary (for JPEG)
-            if img.mode == 'RGBA':
-                img = img.convert('RGB')
-            
-            # Calculate new dimensions while maintaining aspect ratio
-            img.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
-            
-            # Save optimized image to BytesIO
-            output = BytesIO()
-            img.save(output, format='JPEG', quality=quality, optimize=True)
-            output.seek(0)
-            
-            return output
-            
-        except Exception as e:
-            print(f"Error optimizing image: {str(e)}")
-            return None
+
     
-    def upload_image(self, image_file, folder='rental_platform', public_id=None, optimize=True):
+    def upload_image(self, image_file, folder='rental_platform', public_id=None):
         """
-        Upload image to Cloudinary with optional optimization
+        Upload image to Cloudinary
         
         Args:
             image_file: File object to upload
             folder: Cloudinary folder name
             public_id: Custom public ID for the image
-            optimize: Whether to optimize image before upload
             
         Returns:
             Dictionary with image URL and public_id, or None if failed
         """
-        # Check if Cloudinary is configured
         if not self.is_configured():
             print("Warning: Cloudinary not configured")
             return None
         
         try:
-            # Optimize image before upload if requested
-            if optimize:
-                optimized_image = self.optimize_image(image_file)
-                if optimized_image:
-                    image_file = optimized_image
-            
-            # Upload to Cloudinary
             upload_options = {
                 'folder': folder,
                 'resource_type': 'image',
-                'format': 'jpg'  # Convert all images to JPEG
+                'transformation': [{'width': 1200, 'height': 1200, 'crop': 'limit', 'quality': 'auto'}]
             }
             
-            # Add public_id if provided
             if public_id:
                 upload_options['public_id'] = public_id
             
-            # Perform upload
             result = cloudinary.uploader.upload(image_file, **upload_options)
             
-            # Return image details
             return {
                 'url': result.get('secure_url'),
                 'public_id': result.get('public_id'),
@@ -129,8 +82,7 @@ class CloudinaryService:
         result = self.upload_image(
             image_file=image_file,
             folder='rental_platform/properties',
-            public_id=f'property_{property_id}_{os.urandom(4).hex()}',
-            optimize=True
+            public_id=f'property_{property_id}_{os.urandom(4).hex()}'
         )
         
         return result.get('url') if result else None
@@ -149,8 +101,7 @@ class CloudinaryService:
         result = self.upload_image(
             image_file=image_file,
             folder='rental_platform/profiles',
-            public_id=f'user_{user_id}',
-            optimize=True
+            public_id=f'user_{user_id}'
         )
         
         return result.get('url') if result else None
