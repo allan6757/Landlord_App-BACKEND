@@ -6,7 +6,6 @@ from flask_bcrypt import Bcrypt
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from flask_socketio import SocketIO
-from app.config import Config, ProductionConfig
 import os
 
 # Initialize extensions
@@ -19,24 +18,25 @@ cors = CORS()
 socketio = SocketIO(cors_allowed_origins="*")
 
 def create_app(config_class=None):
-    app = Flask(__name__)
+    flask_app = Flask(__name__)
     
     # Determine config class based on environment
     if config_class is None:
+        from app.config import Config, ProductionConfig
         if os.environ.get('FLASK_ENV') == 'production':
             config_class = ProductionConfig
         else:
             config_class = Config
     
-    app.config.from_object(config_class)
+    flask_app.config.from_object(config_class)
 
-    # Initialize extensions with app
-    db.init_app(app)
-    migrate.init_app(app, db)
-    bcrypt.init_app(app)
-    jwt.init_app(app)
-    cors.init_app(app, resources={r"/api/*": {"origins": app.config['CORS_ORIGINS']}}, supports_credentials=True)
-    socketio.init_app(app, cors_allowed_origins=app.config['CORS_ORIGINS'])
+    # Initialize extensions with flask_app
+    db.init_app(flask_app)
+    migrate.init_app(flask_app, db)
+    bcrypt.init_app(flask_app)
+    jwt.init_app(flask_app)
+    cors.init_app(flask_app, resources={r"/api/*": {"origins": flask_app.config['CORS_ORIGINS']}}, supports_credentials=True)
+    socketio.init_app(flask_app, cors_allowed_origins=flask_app.config['CORS_ORIGINS'])
     
     # Import models to ensure they're registered
     try:
@@ -45,10 +45,10 @@ def create_app(config_class=None):
         pass
     
     # Initialize Cloudinary only if credentials are provided
-    if app.config.get('CLOUDINARY_CLOUD_NAME'):
+    if flask_app.config.get('CLOUDINARY_CLOUD_NAME'):
         try:
             from app.utils.cloudinary import init_cloudinary
-            with app.app_context():
+            with flask_app.app_context():
                 init_cloudinary()
         except Exception:
             pass
@@ -94,7 +94,7 @@ def create_app(config_class=None):
     except ImportError:
         pass
     
-    api.init_app(app)
+    api.init_app(flask_app)
     
     # Register Socket.IO handlers
     try:
@@ -103,7 +103,7 @@ def create_app(config_class=None):
         pass
     
     # Health check endpoint
-    @app.route('/health')
+    @flask_app.route('/health')
     def health_check():
         try:
             # Test database connection
@@ -120,13 +120,13 @@ def create_app(config_class=None):
         }), 200
     
     # Error handlers
-    @app.errorhandler(404)
+    @flask_app.errorhandler(404)
     def not_found(error):
         return jsonify({'error': 'Endpoint not found'}), 404
     
-    @app.errorhandler(500)
+    @flask_app.errorhandler(500)
     def internal_error(error):
         db.session.rollback()
         return jsonify({'error': 'Internal server error'}), 500
     
-    return app
+    return flask_app
