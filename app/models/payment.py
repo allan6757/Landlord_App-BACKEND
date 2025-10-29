@@ -1,7 +1,6 @@
 from .base import BaseModel, db
 from sqlalchemy.dialects.postgresql import ENUM
 import enum
-from datetime import datetime
 
 class PaymentStatus(enum.Enum):
     PENDING = 'pending'
@@ -11,7 +10,7 @@ class PaymentStatus(enum.Enum):
 
 class PaymentMethod(enum.Enum):
     MPESA = 'mpesa'
-    BANK_TRANSFER = 'bank_transfer'
+    BANK = 'bank'
     CASH = 'cash'
     CARD = 'card'
 
@@ -19,19 +18,18 @@ class Payment(BaseModel):
     __tablename__ = 'payments'
     
     amount = db.Column(db.Numeric(10, 2), nullable=False)
-    payment_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    payment_method = db.Column(ENUM(PaymentMethod), nullable=False)
+    payment_date = db.Column(db.DateTime, nullable=False)
+    payment_method = db.Column(ENUM(PaymentMethod), default=PaymentMethod.MPESA)
     status = db.Column(ENUM(PaymentStatus), default=PaymentStatus.PENDING)
     reference = db.Column(db.String(100), unique=True)
-    description = db.Column(db.Text)
+    mpesa_checkout_id = db.Column(db.String(100))
+    phone_number = db.Column(db.String(20))
     
     property_id = db.Column(db.Integer, db.ForeignKey('properties.id'), nullable=False)
-    tenant_id = db.Column(db.Integer, db.ForeignKey('user_profiles.id'), nullable=False)
-    landlord_id = db.Column(db.Integer, db.ForeignKey('user_profiles.id'), nullable=False)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     
     property = db.relationship('Property', backref='payments')
-    tenant_user = db.relationship('UserProfile', foreign_keys=[tenant_id], backref='sent_payments')
-    landlord_user = db.relationship('UserProfile', foreign_keys=[landlord_id], backref='received_payments')
+    tenant = db.relationship('User', backref='payments')
     
     def to_dict(self):
         return {
@@ -41,9 +39,10 @@ class Payment(BaseModel):
             'payment_method': self.payment_method.value if self.payment_method else None,
             'status': self.status.value if self.status else None,
             'reference': self.reference,
-            'description': self.description,
+            'phone_number': self.phone_number,
             'property_id': self.property_id,
             'tenant_id': self.tenant_id,
-            'landlord_id': self.landlord_id,
+            'property': self.property.to_dict() if self.property else None,
+            'tenant': self.tenant.to_dict() if self.tenant else None,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }

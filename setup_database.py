@@ -1,70 +1,102 @@
 #!/usr/bin/env python3
 """
-Database setup script for the Rental Platform
-Creates database, runs migrations, and sets up initial data
+Database setup script for Rental Platform
+Creates tables and sample data
 """
 
 import os
 import sys
-from app import create_app, db
-from app.models import User, UserProfile, UserRole
-from flask_migrate import upgrade
+from pathlib import Path
 
-def setup_database():
-    """Initialize database with tables and sample data"""
-    app = create_app()
+# Set environment for local development
+os.environ['FLASK_ENV'] = 'development'
+os.environ['DATABASE_URL'] = 'sqlite:///landlord_app.db'
+
+# Add current directory to Python path
+current_dir = Path(__file__).parent
+sys.path.insert(0, str(current_dir))
+
+def create_sample_data():
+    """Create sample users and data for testing"""
+    from app.models import User, Property, Payment, Conversation, Message
+    from app import db
+    from datetime import datetime, date
     
-    with app.app_context():
-        print("Creating database tables...")
-        db.create_all()
+    # Check if data already exists
+    if User.query.first():
+        print("⚠️  Sample data already exists. Skipping creation.")
+        return
+    
+    print("📝 Creating sample data...")
+    
+    # Create sample landlord
+    landlord = User(
+        email='landlord@example.com',
+        first_name='John',
+        last_name='Landlord',
+        phone='+254700000001',
+        role='landlord'
+    )
+    landlord.set_password('password123')
+    
+    # Create sample tenant
+    tenant = User(
+        email='tenant@example.com',
+        first_name='Jane',
+        last_name='Tenant',
+        phone='+254700000002',
+        role='tenant'
+    )
+    tenant.set_password('password123')
+    
+    # Create admin user
+    admin = User(
+        email='admin@example.com',
+        first_name='Admin',
+        last_name='User',
+        phone='+254700000000',
+        role='admin'
+    )
+    admin.set_password('admin123')
+    
+    db.session.add_all([landlord, tenant, admin])
+    db.session.commit()
+    
+    print("✅ Sample users created")
+    print("\n🔑 Test Accounts:")
+    print("   Landlord: landlord@example.com / password123")
+    print("   Tenant: tenant@example.com / password123")
+    print("   Admin: admin@example.com / admin123")
+
+def main():
+    """Main setup function"""
+    try:
+        from app import create_app, db
+        from app.config import DevelopmentConfig
         
-        print("Setting up sample users...")
+        print("🔧 Setting up database...")
         
-        # Create sample landlord
-        if not User.query.filter_by(email='landlord@example.com').first():
-            landlord = User(
-                email='landlord@example.com',
-                first_name='John',
-                last_name='Landlord',
-                is_verified=True
-            )
-            landlord.set_password('password123')
-            db.session.add(landlord)
-            db.session.commit()
+        app = create_app(DevelopmentConfig)
+        
+        with app.app_context():
+            # Create all tables
+            db.create_all()
+            print("✅ Database tables created!")
             
-            landlord_profile = UserProfile(
-                user_id=landlord.id,
-                role=UserRole.LANDLORD,
-                phone='+1234567890',
-                address='123 Owner Street'
-            )
-            db.session.add(landlord_profile)
-        
-        # Create sample tenant
-        if not User.query.filter_by(email='tenant@example.com').first():
-            tenant = User(
-                email='tenant@example.com',
-                first_name='Jane',
-                last_name='Tenant',
-                is_verified=True
-            )
-            tenant.set_password('password123')
-            db.session.add(tenant)
-            db.session.commit()
+            # Create sample data
+            create_sample_data()
             
-            tenant_profile = UserProfile(
-                user_id=tenant.id,
-                role=UserRole.TENANT,
-                phone='+0987654321',
-                address='456 Renter Avenue'
-            )
-            db.session.add(tenant_profile)
+        print("\n🚀 Database setup complete!")
+        print("You can now run: python run_local.py")
         
-        db.session.commit()
-        print("Database setup completed successfully!")
-        print("\nSample accounts created:")
-        print("Landlord: landlord@example.com / password123")
-        print("Tenant: tenant@example.com / password123")
+    except Exception as e:
+        print(f"❌ Database setup error: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+    
+    return True
 
 if __name__ == '__main__':
-    setup_database()
+    success = main()
+    sys.exit(0 if success else 1)

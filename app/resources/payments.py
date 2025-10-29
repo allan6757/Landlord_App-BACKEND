@@ -1,15 +1,13 @@
-from flask import request
 from flask_restful import Resource
+from flask import request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app import db
-from app.models.payment import Payment, PaymentStatus, PaymentMethod
-from app.models.user import User
-from app.models.property import Property
-from app.schemas.payment import PaymentSchema
+from app.models import Payment, Property, User, db
+from app.schemas.payment import PaymentSchema, PaymentCreateSchema
+from app.utils.payments import MPesaService
+from app.utils.email import send_payment_confirmation
 from datetime import datetime
 import uuid
-
-payment_schema = PaymentSchema()
+from marshmallow import ValidationError
 
 class PaymentList(Resource):
     @jwt_required()
@@ -17,13 +15,14 @@ class PaymentList(Resource):
         user_id = get_jwt_identity()
         user = User.query.get_or_404(user_id)
         
-        if user.profile.role.value == 'landlord':
-            payments = Payment.query.filter_by(landlord_id=user.profile.id).all()
-        elif user.profile.role.value == 'tenant':
-            payments = Payment.query.filter_by(tenant_id=user.profile.id).all()
+        if user.role == 'landlord':
+            # Get payments for landlord's properties
+            payments = Payment.query.join(Property).filter(Property.landlord_id == user.id).all()
+        elif user.role == 'tenant':
+            payments = Payment.query.filter_by(tenant_id=user.id).all()
         else:
             payments = Payment.query.all()
-
+        
         return {'payments': [payment.to_dict() for payment in payments]}, 200
 
     @jwt_required()
@@ -31,28 +30,47 @@ class PaymentList(Resource):
         user_id = get_jwt_identity()
         user = User.query.get_or_404(user_id)
         
-        data = request.get_json()
-        errors = payment_schema.validate(data)
-        if errors:
-            return {'errors': errors}, 400
+        schema = PaymentCreateSchema()
+        try:
+            data = schema.load(request.json)
+        except ValidationError as err:
+            return {'errors': err.messages}, 400
         
-        # Verify property access
         property = Property.query.get_or_404(data['property_id'])
-        if user.profile.role.value == 'tenant' and property.tenant_id != user.profile.id:
-            return {'error': 'You can only make payments for your assigned properties'}, 403
+        
+        # Verify tenant can pay for this property
+        if user.role == 'tenant' and property.tenant_id != user.id:
+            return {'error': 'You can only pay for your assigned property'}, 403
         
         payment = Payment(
             amount=data['amount'],
-            payment_method=PaymentMethod(data['payment_method']),
-            description=data.get('description', 'Rent payment'),
+            payment_date=datetime.utcnow(),
+            payment_method=data.get('payment_method', 'mpesa'),
             property_id=data['property_id'],
-            tenant_id=user.profile.id if user.profile.role.value == 'tenant' else data.get('tenant_id'),
-            landlord_id=property.landlord_id,
-            reference=str(uuid.uuid4())[:8].upper()
+            tenant_id=user.id,
+            reference=str(uuid.uuid4()),
+            phone_number=data.get('phone_number')
         )
         
         db.session.add(payment)
         db.session.commit()
+        
+        # Process MPesa payment if method is mpesa
+        if payment.payment_method.value == 'mpesa' and payment.phone_number:
+            mpesa = MPesaService()
+            result = mpesa.initiate_payment(
+                payment.phone_number,
+                payment.amount,
+                payment.reference
+            )
+            
+            if 'CheckoutRequestID' in result:
+                payment.mpesa_checkout_id = result['CheckoutRequestID']
+                db.session.commit()
+            elif 'error' in result:
+                payment.status = 'failed'
+                db.session.commit()
+                return {'error': result['error']}, 400
         
         return {'payment': payment.to_dict()}, 201
 
@@ -64,8 +82,9 @@ class PaymentDetail(Resource):
         payment = Payment.query.get_or_404(payment_id)
         
         # Check access permissions
-        if (user.profile.role.value == 'tenant' and payment.tenant_id != user.profile.id) or \
-           (user.profile.role.value == 'landlord' and payment.landlord_id != user.profile.id):
+        if user.role == 'tenant' and payment.tenant_id != user.id:
+            return {'error': 'Access denied'}, 403
+        elif user.role == 'landlord' and payment.property.landlord_id != user.id:
             return {'error': 'Access denied'}, 403
         
         return {'payment': payment.to_dict()}, 200
@@ -77,12 +96,37 @@ class PaymentDetail(Resource):
         payment = Payment.query.get_or_404(payment_id)
         
         # Only landlords can update payment status
-        if user.profile.role.value != 'landlord' or payment.landlord_id != user.profile.id:
+        if user.role != 'landlord' or payment.property.landlord_id != user.id:
             return {'error': 'Only property owner can update payment status'}, 403
         
-        data = request.get_json()
+        data = request.json
         if 'status' in data:
-            payment.status = PaymentStatus(data['status'])
-            db.session.commit()
+            payment.status = data['status']
+            
+            # Send confirmation email if payment is completed
+            if payment.status.value == 'completed':
+                send_payment_confirmation(payment)
         
+        db.session.commit()
         return {'payment': payment.to_dict()}, 200
+
+class PaymentCallback(Resource):
+    def post(self):
+        """MPesa callback endpoint"""
+        data = request.json
+        
+        if 'Body' in data and 'stkCallback' in data['Body']:
+            callback_data = data['Body']['stkCallback']
+            checkout_id = callback_data.get('CheckoutRequestID')
+            
+            payment = Payment.query.filter_by(mpesa_checkout_id=checkout_id).first()
+            if payment:
+                if callback_data.get('ResultCode') == 0:
+                    payment.status = 'completed'
+                    send_payment_confirmation(payment)
+                else:
+                    payment.status = 'failed'
+                
+                db.session.commit()
+        
+        return {'message': 'Callback processed'}, 200
