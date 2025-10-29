@@ -119,6 +119,19 @@ def create_app(config_class=None):
             'environment': os.environ.get('FLASK_ENV', 'development')
         }), 200
     
+    # Handle OPTIONS requests for CORS
+    @flask_app.after_request
+    def after_request(response):
+        origin = flask_app.config.get('CORS_ORIGINS', ['*'])
+        if origin != ['*']:
+            response.headers['Access-Control-Allow-Origin'] = origin[0] if origin else '*'
+        else:
+            response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization'
+        response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST,DELETE,OPTIONS'
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        return response
+    
     # Error handlers
     @flask_app.errorhandler(404)
     def not_found(error):
