@@ -1,10 +1,14 @@
-# Temporary minimal app for testing
 from flask import Flask, request, jsonify
-from flask_cors import CORS
 import os
 
 app = Flask(__name__)
-CORS(app, origins=['*'])
+
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,Accept')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
 
 @app.route('/api/auth/register', methods=['POST', 'OPTIONS'])
 def register():
@@ -14,7 +18,6 @@ def register():
     data = request.get_json() or {}
     return jsonify({
         'success': True,
-        'message': 'Registration endpoint working',
         'token': 'test_token_123',
         'user': {
             'id': 1,
@@ -31,7 +34,6 @@ def login():
     data = request.get_json() or {}
     return jsonify({
         'success': True,
-        'message': 'Login endpoint working',
         'token': 'test_token_123',
         'user': {
             'id': 1,
@@ -42,7 +44,7 @@ def login():
 
 @app.route('/health')
 def health():
-    return jsonify({'status': 'healthy', 'message': 'Minimal app working'})
+    return jsonify({'status': 'healthy', 'message': 'Working'})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
