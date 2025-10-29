@@ -1,100 +1,74 @@
-from flask import request
 from flask_restful import Resource
+from flask import request
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
-from sqlalchemy.exc import SQLAlchemyError
-from app import db
-from app.models.user import User, UserProfile, UserRole
-from app.schemas.user import UserSchema, LoginSchema
-
-user_schema = UserSchema()
-login_schema = LoginSchema()
+from app.models import User, db
+from app.schemas.user import UserCreateSchema, UserSchema
+from app.utils.email import send_welcome_email
+from marshmallow import ValidationError
 
 class Register(Resource):
     def post(self):
+        schema = UserCreateSchema()
         try:
-            data = request.get_json()
-            if not data:
-                return {'error': 'No JSON data provided'}, 400
-
-            errors = user_schema.validate(data)
-            if errors:
-                return {'errors': errors}, 400
-
-            if User.query.filter_by(email=data['email']).first():
-                return {'error': 'User with this email already exists'}, 400
-
-            user = User(
-                email=data['email'],
-                first_name=data['first_name'],
-                last_name=data['last_name']
-            )
-            user.set_password(data['password'])
-            db.session.add(user)
-            db.session.flush()
-
-            profile = UserProfile(user_id=user.id, role=UserRole.TENANT)
-            db.session.add(profile)
-            db.session.commit()
-
-            access_token = create_access_token(identity=user.id)
-
-            return {
-                'message': 'User created successfully',
-                'access_token': access_token,
-                'user': user.to_dict()
-            }, 201
-        except Exception as e:
-            db.session.rollback()
-            print(f"Registration error: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            return {'error': f'Registration failed: {str(e)}'}, 500
+            data = schema.load(request.json)
+        except ValidationError as err:
+            return {'errors': err.messages}, 400
+        
+        if User.query.filter_by(email=data['email']).first():
+            return {'error': 'Email already exists'}, 400
+        
+        user = User(
+            email=data['email'],
+            first_name=data['first_name'],
+            last_name=data['last_name'],
+            phone=data.get('phone'),
+            role=data.get('role', 'tenant')
+        )
+        user.set_password(data['password'])
+        
+        db.session.add(user)
+        db.session.commit()
+        
+        # Send welcome email
+        send_welcome_email(user)
+        
+        return UserSchema().dump(user), 201
 
 class Login(Resource):
     def post(self):
-        try:
-            data = request.get_json()
-            if not data:
-                return {'error': 'No JSON data provided'}, 400
-
-            errors = login_schema.validate(data)
-            if errors:
-                return {'errors': errors}, 400
-
-            user = User.query.filter_by(email=data['email']).first()
-
-            if user and user.check_password(data['password']):
-                if not user.is_active:
-                    return {'error': 'Account is deactivated'}, 403
-
-                try:
-                    user.update_last_login()
-                    db.session.commit()
-                except SQLAlchemyError as e:
-                    db.session.rollback()
-                    print(f"Login update error: {str(e)}")
-
-                access_token = create_access_token(identity=user.id)
-
-                return {
-                    'access_token': access_token,
-                    'user': user.to_dict()
-                }, 200
-
-            return {'error': 'Invalid email or password'}, 401
-        except Exception as e:
-            print(f"Login error: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            return {'error': f'Login failed: {str(e)}'}, 500
+        data = request.json
+        if not data or not data.get('email') or not data.get('password'):
+            return {'error': 'Email and password required'}, 400
+            
+        user = User.query.filter_by(email=data['email']).first()
+        
+        if user and user.check_password(data['password']) and user.is_active:
+            token = create_access_token(identity=user.id)
+            return {
+                'token': token,
+                'user': UserSchema().dump(user)
+            }, 200
+        
+        return {'error': 'Invalid credentials'}, 401
 
 class Profile(Resource):
     @jwt_required()
     def get(self):
-        try:
-            user_id = get_jwt_identity()
-            user = User.query.get_or_404(user_id)
-            return {'user': user.to_dict()}, 200
-        except SQLAlchemyError as e:
-            print(f"Profile retrieval error: {str(e)}")
-            return {'error': f'Failed to retrieve profile: {str(e)}'}, 500
+        user_id = get_jwt_identity()
+        user = User.query.get_or_404(user_id)
+        return UserSchema().dump(user), 200
+    
+    @jwt_required()
+    def put(self):
+        user_id = get_jwt_identity()
+        user = User.query.get_or_404(user_id)
+        
+        data = request.json
+        updatable_fields = ['first_name', 'last_name', 'phone', 'profile_image']
+        
+        for field in updatable_fields:
+            if field in data:
+                setattr(user, field, data[field])
+        
+        db.session.commit()
+        return UserSchema().dump(user), 200

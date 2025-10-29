@@ -35,12 +35,13 @@ class Property(BaseModel):
     bathrooms = db.Column(db.Numeric(3, 1))
     square_feet = db.Column(db.Integer)
     amenities = db.Column(db.Text)
+    images = db.Column(db.JSON)  # Store Cloudinary URLs
 
-    landlord_id = db.Column(db.Integer, db.ForeignKey('user_profiles.id'), nullable=False)
-    tenant_id = db.Column(db.Integer, db.ForeignKey('user_profiles.id'))
+    landlord_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('users.id'))
 
-    landlord = db.relationship('UserProfile', foreign_keys=[landlord_id], backref='owned_properties')
-    tenant = db.relationship('UserProfile', foreign_keys=[tenant_id], backref='tenant_properties')
+    landlord = db.relationship('User', foreign_keys=[landlord_id], backref='owned_properties')
+    tenant = db.relationship('User', foreign_keys=[tenant_id], backref='tenant_properties')
     conversations = db.relationship('Conversation', back_populates='property')
 
     def to_dict(self):
@@ -60,8 +61,11 @@ class Property(BaseModel):
             'bathrooms': float(self.bathrooms) if self.bathrooms else None,
             'square_feet': self.square_feet,
             'amenities': self.amenities,
+            'images': self.images or [],
             'landlord_id': self.landlord_id,
             'tenant_id': self.tenant_id,
+            'landlord': self.landlord.to_dict() if self.landlord else None,
+            'tenant': self.tenant.to_dict() if self.tenant else None,
             'lease_start': self.lease_start.isoformat() if self.lease_start else None,
             'lease_end': self.lease_end.isoformat() if self.lease_end else None,
             'created_at': self.created_at.isoformat() if self.created_at else None
