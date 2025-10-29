@@ -1,4 +1,4 @@
-from app import create_app, db
+from app import create_app, db, socketio
 from flask_migrate import Migrate
 import os
 
@@ -22,8 +22,11 @@ if __name__ == '__main__':
     # Get port from environment or default to 5000
     port = int(os.environ.get('PORT', 5000))
     
-    app.run(
+    # Use socketio.run instead of app.run for WebSocket support
+    socketio.run(
+        app,
         host='0.0.0.0',
         port=port,
-        debug=app.config.get('DEBUG', False)
+        debug=app.config.get('DEBUG', False),
+        allow_unsafe_werkzeug=True
     )

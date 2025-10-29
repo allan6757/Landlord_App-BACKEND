@@ -5,6 +5,7 @@ from flask_migrate import Migrate
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
+from flask_socketio import SocketIO
 from app.config import Config, ProductionConfig
 import os
 
@@ -15,6 +16,7 @@ bcrypt = Bcrypt()
 jwt = JWTManager()
 api = Api()
 cors = CORS()
+socketio = SocketIO(cors_allowed_origins="*", async_mode='eventlet')
 
 def create_app(config_class=None):
     app = Flask(__name__)
@@ -34,6 +36,7 @@ def create_app(config_class=None):
     bcrypt.init_app(app)
     jwt.init_app(app)
     cors.init_app(app, origins=app.config['CORS_ORIGINS'], supports_credentials=True)
+    socketio.init_app(app, cors_allowed_origins=app.config['CORS_ORIGINS'])
     
     # Import models to ensure they're registered
     try:
@@ -93,6 +96,14 @@ def create_app(config_class=None):
         app.logger.error(f"Failed to import resources: {e}")
     
     api.init_app(app)
+    
+    # Register Socket.IO handlers
+    with app.app_context():
+        try:
+            from app.sockets import *
+            app.logger.info("Socket.IO handlers registered")
+        except Exception as e:
+            app.logger.error(f"Socket.IO handler registration failed: {e}")
     
     # Health check endpoint
     @app.route('/health')
