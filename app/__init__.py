@@ -35,7 +35,7 @@ def create_app(config_class=None):
     migrate.init_app(app, db)
     bcrypt.init_app(app)
     jwt.init_app(app)
-    cors.init_app(app, origins=app.config['CORS_ORIGINS'], supports_credentials=True)
+    cors.init_app(app, resources={r"/api/*": {"origins": app.config['CORS_ORIGINS']}}, supports_credentials=True)
     socketio.init_app(app, cors_allowed_origins=app.config['CORS_ORIGINS'])
     
     # Import models to ensure they're registered
