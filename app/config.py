@@ -7,11 +7,15 @@ class Config:
     
     # Database Configuration
     database_url = os.environ.get('DATABASE_URL')
-    if database_url and database_url.startswith('postgres://'):
-        database_url = database_url.replace('postgres://', 'postgresql+psycopg://', 1)
-    elif database_url and database_url.startswith('postgresql://'):
-        database_url = database_url.replace('postgresql://', 'postgresql+psycopg://', 1)
-    SQLALCHEMY_DATABASE_URI = database_url or 'postgresql+psycopg://rental_user:rental_password@localhost:5432/rental_platform'
+    if database_url:
+        # Only convert PostgreSQL URLs, leave SQLite URLs as-is
+        if database_url.startswith('postgres://'):
+            database_url = database_url.replace('postgres://', 'postgresql+psycopg://', 1)
+        elif database_url.startswith('postgresql://'):
+            database_url = database_url.replace('postgresql://', 'postgresql+psycopg://', 1)
+        SQLALCHEMY_DATABASE_URI = database_url
+    else:
+        SQLALCHEMY_DATABASE_URI = 'sqlite:///landlord_app.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # JWT Configuration

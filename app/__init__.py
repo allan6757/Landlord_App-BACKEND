@@ -77,6 +77,10 @@ def create_app(config_class=Config):
     
     api.init_app(app)
     
+    # Ensure database tables exist
+    with app.app_context():
+        db.create_all()
+    
     # Manual CORS headers
     @app.after_request
     def after_request(response):
