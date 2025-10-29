@@ -41,9 +41,8 @@ def create_app(config_class=None):
     # Import models to ensure they're registered
     try:
         from app.models import User, Property, Payment, Conversation, Message
-        app.logger.info("Models imported successfully")
-    except Exception as e:
-        app.logger.error(f"Model import failed: {e}")
+    except Exception:
+        pass
     
     # Initialize Cloudinary only if credentials are provided
     if app.config.get('CLOUDINARY_CLOUD_NAME'):
@@ -51,8 +50,8 @@ def create_app(config_class=None):
             from app.utils.cloudinary import init_cloudinary
             with app.app_context():
                 init_cloudinary()
-        except Exception as e:
-            app.logger.warning(f"Cloudinary initialization failed: {e}")
+        except Exception:
+            pass
     
     # Register resources with error handling
     try:
@@ -92,17 +91,16 @@ def create_app(config_class=None):
         api.add_resource(LandlordDashboard, '/api/dashboard/landlord')
         api.add_resource(TenantDashboard, '/api/dashboard/tenant')
         
-    except ImportError as e:
-        app.logger.error(f"Failed to import resources: {e}")
+    except ImportError:
+        pass
     
     api.init_app(app)
     
     # Register Socket.IO handlers
     try:
         import app.sockets
-        app.logger.info("Socket.IO handlers registered")
-    except Exception as e:
-        app.logger.warning(f"Socket.IO handler registration skipped: {e}")
+    except Exception:
+        pass
     
     # Health check endpoint
     @app.route('/health')
