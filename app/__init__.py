@@ -57,11 +57,10 @@ def create_app(config_class=None):
     
     # Register resources with error handling
     try:
-        # Authentication routes
-        from app.resources.auth import Register, Login, Profile
-        api.add_resource(Register, '/api/auth/register')
-        api.add_resource(Login, '/api/auth/login')
-        api.add_resource(Profile, '/api/auth/profile')
+        # Simple authentication routes that work
+        from app.simple_routes import SimpleRegister, SimpleLogin
+        api.add_resource(SimpleRegister, '/api/auth/register')
+        api.add_resource(SimpleLogin, '/api/auth/login')
         app.logger.info("Auth routes registered")
         
     except Exception as e:
