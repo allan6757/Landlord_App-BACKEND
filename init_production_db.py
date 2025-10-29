@@ -6,14 +6,17 @@ Creates tables and demo users for production
 
 import os
 from app import create_app, db
-from app.models import User
+from app.config import ProductionConfig
 
 def init_production_database():
     """Initialize production database with demo users"""
-    app = create_app()
+    app = create_app(ProductionConfig)
     
     with app.app_context():
         try:
+            # Import all models to ensure they're registered
+            from app.models import User, Property, Payment, Conversation, Message
+            
             # Create all tables
             db.create_all()
             print("✅ Database tables created")
@@ -40,6 +43,16 @@ def init_production_database():
                 tenant.set_password('password123')
                 db.session.add(tenant)
                 
+                # Create admin user
+                admin = User(
+                    email='admin@example.com',
+                    first_name='Admin',
+                    last_name='User',
+                    role='admin'
+                )
+                admin.set_password('admin123')
+                db.session.add(admin)
+                
                 db.session.commit()
                 print("✅ Demo users created")
             else:
@@ -47,6 +60,7 @@ def init_production_database():
                 
         except Exception as e:
             print(f"❌ Database initialization failed: {e}")
+            db.session.rollback()
             raise
 
 if __name__ == '__main__':

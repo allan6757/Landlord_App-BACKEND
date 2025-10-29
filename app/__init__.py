@@ -33,13 +33,17 @@ def create_app(config_class=None):
     migrate.init_app(app, db)
     bcrypt.init_app(app)
     jwt.init_app(app)
-    cors.init_app(app, origins=app.config['CORS_ORIGINS'])
+    cors.init_app(app, origins=app.config['CORS_ORIGINS'], supports_credentials=True)
     
     # Import models to ensure they're registered
-    from app.models import User, Property, Payment, Conversation, Message
+    try:
+        from app.models import User, Property, Payment, Conversation, Message
+        app.logger.info("Models imported successfully")
+    except Exception as e:
+        app.logger.error(f"Model import failed: {e}")
     
     # Initialize Cloudinary only if credentials are provided
-    if app.config['CLOUDINARY_CLOUD_NAME']:
+    if app.config.get('CLOUDINARY_CLOUD_NAME'):
         try:
             from app.utils.cloudinary import init_cloudinary
             with app.app_context():

@@ -69,23 +69,12 @@ class ProductionConfig(Config):
     DEBUG = False
     BCRYPT_LOG_ROUNDS = 13
     
-    # Production CORS settings
-    cors_origins = os.environ.get('CORS_ORIGINS', 'https://landlord-app-frontend.vercel.app,http://localhost:3000')
+    # Production CORS settings - Allow all Vercel domains
+    cors_origins = os.environ.get('CORS_ORIGINS', '*')
     if cors_origins == '*':
         CORS_ORIGINS = ['*']
     else:
-        origins = cors_origins.split(',')
-        # Handle Vercel wildcard domains
-        expanded_origins = []
-        for origin in origins:
-            expanded_origins.append(origin.strip())
-            if 'vercel.app' in origin and '*' in origin:
-                # Allow all Vercel preview deployments
-                expanded_origins.extend([
-                    'https://landlord-app-frontend.vercel.app',
-                    'https://landlord-app-frontend-git-main.vercel.app'
-                ])
-        CORS_ORIGINS = list(set(expanded_origins))
+        CORS_ORIGINS = [origin.strip() for origin in cors_origins.split(',')]
     
 class TestingConfig(Config):
     TESTING = True
