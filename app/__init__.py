@@ -98,12 +98,11 @@ def create_app(config_class=None):
     api.init_app(app)
     
     # Register Socket.IO handlers
-    with app.app_context():
-        try:
-            from app.sockets import *
-            app.logger.info("Socket.IO handlers registered")
-        except Exception as e:
-            app.logger.error(f"Socket.IO handler registration failed: {e}")
+    try:
+        import app.sockets
+        app.logger.info("Socket.IO handlers registered")
+    except Exception as e:
+        app.logger.warning(f"Socket.IO handler registration skipped: {e}")
     
     # Health check endpoint
     @app.route('/health')
