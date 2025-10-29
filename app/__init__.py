@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_restful import Api
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -33,7 +33,11 @@ def create_app(config_class=None):
     migrate.init_app(app, db)
     bcrypt.init_app(app)
     jwt.init_app(app)
-    cors.init_app(app, origins=app.config['CORS_ORIGINS'], supports_credentials=True)
+    cors.init_app(app, 
+                  origins=app.config['CORS_ORIGINS'], 
+                  supports_credentials=True,
+                  allow_headers=['Content-Type', 'Authorization', 'Accept'],
+                  methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
     
     # Import models to ensure they're registered
     try:
@@ -110,6 +114,16 @@ def create_app(config_class=None):
             'database': db_status,
             'environment': os.environ.get('FLASK_ENV', 'development')
         }), 200
+    
+    # Handle preflight OPTIONS requests
+    @app.before_request
+    def handle_preflight():
+        if request.method == "OPTIONS":
+            response = jsonify({})
+            response.headers.add("Access-Control-Allow-Origin", "*")
+            response.headers.add('Access-Control-Allow-Headers', "Content-Type,Authorization,Accept")
+            response.headers.add('Access-Control-Allow-Methods', "GET,PUT,POST,DELETE,OPTIONS")
+            return response
     
     # Error handlers
     @app.errorhandler(404)
