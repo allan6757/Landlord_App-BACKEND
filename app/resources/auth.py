@@ -1,7 +1,8 @@
 from flask_restful import Resource
-from flask import request, current_app, jsonify
+from flask import request, current_app
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from marshmallow import ValidationError
+from app.utils.errors import AuthError, create_error_response, create_success_response
 
 class Register(Resource):
     def post(self):
@@ -10,17 +11,23 @@ class Register(Resource):
             from app.models import User
             from app.schemas.user import UserCreateSchema, UserSchema
             
-            # Validate input data
             if not request.json:
-                return {'error': 'No JSON data provided'}, 400
+                return create_error_response(
+                    "Request body is required", 
+                    AuthError.VALIDATION_ERROR, 
+                    400
+                )
             
             schema = UserCreateSchema()
             data = schema.load(request.json)
             
             # Check if user already exists
-            existing_user = User.query.filter_by(email=data['email']).first()
-            if existing_user:
-                return {'error': 'Email already exists'}, 400
+            if User.query.filter_by(email=data['email']).first():
+                return create_error_response(
+                    "An account with this email already exists", 
+                    AuthError.EMAIL_EXISTS, 
+                    409
+                )
             
             # Create new user
             user = User(
@@ -35,20 +42,28 @@ class Register(Resource):
             db.session.add(user)
             db.session.commit()
             
-            current_app.logger.info(f"New user registered: {user.email}")
+            # Generate token
+            token = create_access_token(identity=user.id)
             
-            return {
-                'message': 'User registered successfully',
+            return create_success_response({
+                'token': token,
                 'user': UserSchema().dump(user)
-            }, 201
+            }, "Account created successfully", 201)
             
         except ValidationError as err:
-            current_app.logger.error(f"Registration validation error: {err.messages}")
-            return {'errors': err.messages}, 400
+            return create_error_response(
+                "Please check your input and try again", 
+                AuthError.VALIDATION_ERROR, 
+                400
+            )
         except Exception as e:
-            db.session.rollback()
             current_app.logger.error(f"Registration error: {str(e)}")
-            return {'error': 'Registration failed. Please try again.'}, 500
+            db.session.rollback()
+            return create_error_response(
+                "Unable to create account. Please try again later", 
+                AuthError.SERVER_ERROR, 
+                500
+            )
 
 class Login(Resource):
     def post(self):
@@ -57,46 +72,56 @@ class Login(Resource):
             from app.models import User
             from app.schemas.user import UserSchema
             
-            # Validate input
             if not request.json:
-                return {'error': 'No JSON data provided'}, 400
+                return create_error_response(
+                    "Email and password are required", 
+                    AuthError.VALIDATION_ERROR, 
+                    400
+                )
             
             data = request.json
-            email = data.get('email')
-            password = data.get('password')
+            email = data.get('email', '').strip()
+            password = data.get('password', '')
             
             if not email or not password:
-                return {'error': 'Email and password are required'}, 400
+                return create_error_response(
+                    "Email and password are required", 
+                    AuthError.VALIDATION_ERROR, 
+                    400
+                )
             
             # Find user
             user = User.query.filter_by(email=email).first()
             
-            if not user:
-                current_app.logger.warning(f"Login attempt with non-existent email: {email}")
-                return {'error': 'Invalid email or password'}, 401
+            if not user or not user.check_password(password):
+                return create_error_response(
+                    "Invalid email or password", 
+                    AuthError.INVALID_CREDENTIALS, 
+                    401
+                )
             
             if not user.is_active:
-                return {'error': 'Account is deactivated'}, 401
-            
-            # Check password
-            if not user.check_password(password):
-                current_app.logger.warning(f"Failed login attempt for: {email}")
-                return {'error': 'Invalid email or password'}, 401
+                return create_error_response(
+                    "Your account has been disabled", 
+                    AuthError.ACCOUNT_DISABLED, 
+                    403
+                )
             
             # Generate token
             token = create_access_token(identity=user.id)
             
-            current_app.logger.info(f"Successful login: {user.email}")
-            
-            return {
-                'message': 'Login successful',
+            return create_success_response({
                 'token': token,
                 'user': UserSchema().dump(user)
-            }, 200
+            }, "Login successful")
             
         except Exception as e:
             current_app.logger.error(f"Login error: {str(e)}")
-            return {'error': 'Login failed. Please try again.'}, 500
+            return create_error_response(
+                "Unable to sign in. Please try again later", 
+                AuthError.SERVER_ERROR, 
+                500
+            )
 
 class Profile(Resource):
     @jwt_required()
@@ -109,15 +134,23 @@ class Profile(Resource):
             user = User.query.get(user_id)
             
             if not user:
-                return {'error': 'User not found'}, 404
+                return create_error_response(
+                    "User not found", 
+                    AuthError.INVALID_CREDENTIALS, 
+                    404
+                )
             
-            return {
+            return create_success_response({
                 'user': UserSchema().dump(user)
-            }, 200
+            })
             
         except Exception as e:
-            current_app.logger.error(f"Profile get error: {str(e)}")
-            return {'error': 'Failed to get profile'}, 500
+            current_app.logger.error(f"Profile error: {str(e)}")
+            return create_error_response(
+                "Unable to load profile", 
+                AuthError.SERVER_ERROR, 
+                500
+            )
     
     @jwt_required()
     def put(self):
@@ -130,7 +163,11 @@ class Profile(Resource):
             user = User.query.get(user_id)
             
             if not user:
-                return {'error': 'User not found'}, 404
+                return create_error_response(
+                    "User not found", 
+                    AuthError.INVALID_CREDENTIALS, 
+                    404
+                )
             
             data = request.json or {}
             updatable_fields = ['first_name', 'last_name', 'phone', 'profile_image']
@@ -141,12 +178,15 @@ class Profile(Resource):
             
             db.session.commit()
             
-            return {
-                'message': 'Profile updated successfully',
+            return create_success_response({
                 'user': UserSchema().dump(user)
-            }, 200
+            }, "Profile updated successfully")
             
         except Exception as e:
-            db.session.rollback()
             current_app.logger.error(f"Profile update error: {str(e)}")
-            return {'error': 'Failed to update profile'}, 500
+            db.session.rollback()
+            return create_error_response(
+                "Unable to update profile", 
+                AuthError.SERVER_ERROR, 
+                500
+            )
