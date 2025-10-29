@@ -16,7 +16,7 @@ services:
           name: landlord-app-db
           property: connectionString
       - key: CORS_ORIGINS
-        value: https://landlord-app-frontend.vercel.app,https://landlord-app-frontend-git-main.vercel.app,http://localhost:3000
+        value: https://landlord-app-frontend.vercel.app,https://landlord-app-frontend-git-main.vercel.app,https://landlord-app-frontend-*.vercel.app,http://localhost:3000
       - key: FRONTEND_URL
         value: https://landlord-app-frontend.vercel.app
       - key: CLOUDINARY_CLOUD_NAME
