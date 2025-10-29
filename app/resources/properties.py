@@ -12,9 +12,9 @@ class PropertyList(Resource):
         user_id = get_jwt_identity()
         user = User.query.get_or_404(user_id)
 
-        if user.role.value == 'landlord':
+        if user.role == 'landlord':
             properties = Property.query.filter_by(landlord_id=user.id).all()
-        elif user.role.value == 'tenant':
+        elif user.role == 'tenant':
             properties = Property.query.filter_by(tenant_id=user.id).all()
         else:
             properties = Property.query.all()
@@ -26,7 +26,7 @@ class PropertyList(Resource):
         user_id = get_jwt_identity()
         user = User.query.get_or_404(user_id)
 
-        if user.role.value != 'landlord':
+        if user.role != 'landlord':
             return {'error': 'Only landlords can create properties'}, 403
 
         schema = PropertyCreateSchema()
@@ -113,11 +113,11 @@ class PropertyDetail(Resource):
         return {'message': 'Property deleted successfully'}, 200
 
     def _can_access_property(self, user, property):
-        if user.role.value == 'admin':
+        if user.role == 'admin':
             return True
-        elif user.role.value == 'landlord':
+        elif user.role == 'landlord':
             return property.landlord_id == user.id
-        elif user.role.value == 'tenant':
+        elif user.role == 'tenant':
             return property.tenant_id == user.id
         return False
 

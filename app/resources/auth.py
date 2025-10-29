@@ -1,21 +1,27 @@
 from flask_restful import Resource
-from flask import request, current_app
+from flask import request, current_app, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from app import db
 from app.models import User
 from app.schemas.user import UserCreateSchema, UserSchema
-from app.utils.email import send_welcome_email
 from marshmallow import ValidationError
 
 class Register(Resource):
     def post(self):
         try:
+            # Validate input data
+            if not request.json:
+                return {'error': 'No JSON data provided'}, 400
+            
             schema = UserCreateSchema()
             data = schema.load(request.json)
             
-            if User.query.filter_by(email=data['email']).first():
+            # Check if user already exists
+            existing_user = User.query.filter_by(email=data['email']).first()
+            if existing_user:
                 return {'error': 'Email already exists'}, 400
             
+            # Create new user
             user = User(
                 email=data['email'],
                 first_name=data['first_name'],
@@ -28,61 +34,93 @@ class Register(Resource):
             db.session.add(user)
             db.session.commit()
             
-            # Send welcome email if configured
-            try:
-                if current_app.config.get('SENDGRID_API_KEY'):
-                    send_welcome_email(user)
-            except Exception as e:
-                current_app.logger.warning(f"Welcome email failed: {e}")
+            current_app.logger.info(f"New user registered: {user.email}")
             
-            return UserSchema().dump(user), 201
+            return {
+                'message': 'User registered successfully',
+                'user': UserSchema().dump(user)
+            }, 201
             
         except ValidationError as err:
+            current_app.logger.error(f"Registration validation error: {err.messages}")
             return {'errors': err.messages}, 400
         except Exception as e:
-            current_app.logger.error(f"Registration error: {e}")
-            return {'error': 'Registration failed'}, 500
+            db.session.rollback()
+            current_app.logger.error(f"Registration error: {str(e)}")
+            return {'error': 'Registration failed. Please try again.'}, 500
 
 class Login(Resource):
     def post(self):
         try:
+            # Validate input
+            if not request.json:
+                return {'error': 'No JSON data provided'}, 400
+            
             data = request.json
-            if not data or not data.get('email') or not data.get('password'):
-                return {'error': 'Email and password required'}, 400
-                
-            user = User.query.filter_by(email=data['email']).first()
+            email = data.get('email')
+            password = data.get('password')
             
-            if user and user.check_password(data['password']) and user.is_active:
-                token = create_access_token(identity=user.id)
-                return {
-                    'token': token,
-                    'user': UserSchema().dump(user)
-                }, 200
+            if not email or not password:
+                return {'error': 'Email and password are required'}, 400
             
-            return {'error': 'Invalid credentials'}, 401
+            # Find user
+            user = User.query.filter_by(email=email).first()
+            
+            if not user:
+                current_app.logger.warning(f"Login attempt with non-existent email: {email}")
+                return {'error': 'Invalid email or password'}, 401
+            
+            if not user.is_active:
+                return {'error': 'Account is deactivated'}, 401
+            
+            # Check password
+            if not user.check_password(password):
+                current_app.logger.warning(f"Failed login attempt for: {email}")
+                return {'error': 'Invalid email or password'}, 401
+            
+            # Generate token
+            token = create_access_token(identity=user.id)
+            
+            current_app.logger.info(f"Successful login: {user.email}")
+            
+            return {
+                'message': 'Login successful',
+                'token': token,
+                'user': UserSchema().dump(user)
+            }, 200
             
         except Exception as e:
-            current_app.logger.error(f"Login error: {e}")
-            return {'error': f'Login failed: {str(e)}'}, 500
+            current_app.logger.error(f"Login error: {str(e)}")
+            return {'error': 'Login failed. Please try again.'}, 500
 
 class Profile(Resource):
     @jwt_required()
     def get(self):
         try:
             user_id = get_jwt_identity()
-            user = User.query.get_or_404(user_id)
-            return UserSchema().dump(user), 200
+            user = User.query.get(user_id)
+            
+            if not user:
+                return {'error': 'User not found'}, 404
+            
+            return {
+                'user': UserSchema().dump(user)
+            }, 200
+            
         except Exception as e:
-            current_app.logger.error(f"Profile get error: {e}")
+            current_app.logger.error(f"Profile get error: {str(e)}")
             return {'error': 'Failed to get profile'}, 500
     
     @jwt_required()
     def put(self):
         try:
             user_id = get_jwt_identity()
-            user = User.query.get_or_404(user_id)
+            user = User.query.get(user_id)
             
-            data = request.json
+            if not user:
+                return {'error': 'User not found'}, 404
+            
+            data = request.json or {}
             updatable_fields = ['first_name', 'last_name', 'phone', 'profile_image']
             
             for field in updatable_fields:
@@ -90,7 +128,13 @@ class Profile(Resource):
                     setattr(user, field, data[field])
             
             db.session.commit()
-            return UserSchema().dump(user), 200
+            
+            return {
+                'message': 'Profile updated successfully',
+                'user': UserSchema().dump(user)
+            }, 200
+            
         except Exception as e:
-            current_app.logger.error(f"Profile update error: {e}")
+            db.session.rollback()
+            current_app.logger.error(f"Profile update error: {str(e)}")
             return {'error': 'Failed to update profile'}, 500

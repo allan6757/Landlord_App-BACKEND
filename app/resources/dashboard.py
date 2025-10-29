@@ -10,7 +10,7 @@ class LandlordDashboard(Resource):
         user_id = get_jwt_identity()
         user = User.query.get_or_404(user_id)
         
-        if user.role.value != 'landlord':
+        if user.role != 'landlord':
             return {'error': 'Landlord access required'}, 403
         
         # Get properties count
@@ -68,7 +68,7 @@ class TenantDashboard(Resource):
         user_id = get_jwt_identity()
         user = User.query.get_or_404(user_id)
         
-        if user.role.value != 'tenant':
+        if user.role != 'tenant':
             return {'error': 'Tenant access required'}, 403
         
         # Get assigned property

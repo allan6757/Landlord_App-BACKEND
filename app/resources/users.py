@@ -12,7 +12,7 @@ class UserList(Resource):
         user = User.query.get_or_404(user_id)
         
         # Only admins can list all users
-        if user.role.value != 'admin':
+        if user.role != 'admin':
             return {'error': 'Admin access required'}, 403
             
         users = User.query.all()
@@ -25,7 +25,7 @@ class UserDetail(Resource):
         current_user = User.query.get_or_404(current_user_id)
         
         # Users can only view their own profile unless they're admin
-        if current_user.role.value != 'admin' and current_user_id != user_id:
+        if current_user.role != 'admin' and current_user_id != user_id:
             return {'error': 'Access denied'}, 403
             
         user = User.query.get_or_404(user_id)

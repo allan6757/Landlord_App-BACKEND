@@ -15,10 +15,10 @@ class PaymentList(Resource):
         user_id = get_jwt_identity()
         user = User.query.get_or_404(user_id)
         
-        if user.role.value == 'landlord':
+        if user.role == 'landlord':
             # Get payments for landlord's properties
             payments = Payment.query.join(Property).filter(Property.landlord_id == user.id).all()
-        elif user.role.value == 'tenant':
+        elif user.role == 'tenant':
             payments = Payment.query.filter_by(tenant_id=user.id).all()
         else:
             payments = Payment.query.all()
@@ -39,7 +39,7 @@ class PaymentList(Resource):
         property = Property.query.get_or_404(data['property_id'])
         
         # Verify tenant can pay for this property
-        if user.role.value == 'tenant' and property.tenant_id != user.id:
+        if user.role == 'tenant' and property.tenant_id != user.id:
             return {'error': 'You can only pay for your assigned property'}, 403
         
         payment = Payment(
@@ -82,9 +82,9 @@ class PaymentDetail(Resource):
         payment = Payment.query.get_or_404(payment_id)
         
         # Check access permissions
-        if user.role.value == 'tenant' and payment.tenant_id != user.id:
+        if user.role == 'tenant' and payment.tenant_id != user.id:
             return {'error': 'Access denied'}, 403
-        elif user.role.value == 'landlord' and payment.property.landlord_id != user.id:
+        elif user.role == 'landlord' and payment.property.landlord_id != user.id:
             return {'error': 'Access denied'}, 403
         
         return {'payment': payment.to_dict()}, 200
@@ -96,7 +96,7 @@ class PaymentDetail(Resource):
         payment = Payment.query.get_or_404(payment_id)
         
         # Only landlords can update payment status
-        if user.role.value != 'landlord' or payment.property.landlord_id != user.id:
+        if user.role != 'landlord' or payment.property.landlord_id != user.id:
             return {'error': 'Only property owner can update payment status'}, 403
         
         data = request.json

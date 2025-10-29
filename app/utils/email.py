@@ -33,7 +33,7 @@ def send_welcome_email(user):
     html_content = f"""
     <h2>Welcome {user.first_name}!</h2>
     <p>Your account has been created successfully.</p>
-    <p>Role: {user.role.value.title()}</p>
+    <p>Role: {user.role.title()}</p>
     <p>You can now log in to your dashboard.</p>
     """
     return send_email(user.email, subject, html_content)
