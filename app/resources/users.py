@@ -1,7 +1,7 @@
 from flask_restful import Resource
 from flask import request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import User
+from app.models import User, db
 from app.schemas.user import UserSchema
 from app.utils.cloudinary import upload_image
 
@@ -41,6 +41,9 @@ class UserProfileImage(Resource):
             return {'error': 'No image file provided'}, 400
         
         file = request.files['image']
+        if file.filename == '':
+            return {'error': 'No file selected'}, 400
+            
         result = upload_image(file, folder=f"users/{user_id}")
         
         if 'error' in result:

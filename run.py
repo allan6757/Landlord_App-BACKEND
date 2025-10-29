@@ -1,19 +1,22 @@
-from app import create_app
-from app.models import db
+from app import create_app, db
 from flask_migrate import Migrate
-from flask_jwt_extended import JWTManager
 import os
 
+# Create app with appropriate config
 app = create_app()
-db.init_app(app)
+
+# Initialize database migration
 migrate = Migrate(app, db)
-jwt = JWTManager(app)
+
+# Create tables if they don't exist (for initial deployment)
+with app.app_context():
+    try:
+        db.create_all()
+        app.logger.info("Database tables created successfully")
+    except Exception as e:
+        app.logger.error(f"Database initialization error: {e}")
 
 if __name__ == '__main__':
-    with app.app_context():
-        # Create tables if they don't exist
-        db.create_all()
-    
     # Get port from environment or default to 5000
     port = int(os.environ.get('PORT', 5000))
     

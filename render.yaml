@@ -1,8 +1,8 @@
 services:
   - type: web
-    name: rental-platform-api
+    name: landlord-app-backend
     env: python
-    buildCommand: pip install -r requirements.txt && python init_db.py
+    buildCommand: pip install -r requirements.txt
     startCommand: gunicorn --bind 0.0.0.0:$PORT run:app
     envVars:
       - key: FLASK_ENV
@@ -13,11 +13,33 @@ services:
         generateValue: true
       - key: DATABASE_URL
         fromDatabase:
-          name: rental-platform-db
+          name: landlord-app-db
           property: connectionString
+      - key: CORS_ORIGINS
+        value: https://landlord-app-frontend.vercel.app,https://landlord-app-frontend-git-main.vercel.app
+      - key: FRONTEND_URL
+        value: https://landlord-app-frontend.vercel.app
+      - key: CLOUDINARY_CLOUD_NAME
+        value: ""
+      - key: CLOUDINARY_API_KEY
+        value: ""
+      - key: CLOUDINARY_API_SECRET
+        value: ""
+      - key: SENDGRID_API_KEY
+        value: ""
+      - key: SENDGRID_FROM_EMAIL
+        value: noreply@rentalplatform.com
+      - key: MPESA_CONSUMER_KEY
+        value: ""
+      - key: MPESA_CONSUMER_SECRET
+        value: ""
+      - key: MPESA_BUSINESS_SHORTCODE
+        value: "174379"
+      - key: MPESA_PASSKEY
+        value: ""
   
   - type: pserv
-    name: rental-platform-db
+    name: landlord-app-db
     env: postgresql
     plan: free
     databaseName: rental_platform
