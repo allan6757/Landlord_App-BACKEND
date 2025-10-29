@@ -8,6 +8,7 @@ from flask_cors import CORS
 from app.config import Config, ProductionConfig
 import os
 
+# Initialize extensions
 db = SQLAlchemy()
 migrate = Migrate()
 bcrypt = Bcrypt()
@@ -27,12 +28,15 @@ def create_app(config_class=None):
     
     app.config.from_object(config_class)
 
-    # Initialize extensions
+    # Initialize extensions with app
     db.init_app(app)
     migrate.init_app(app, db)
     bcrypt.init_app(app)
     jwt.init_app(app)
     cors.init_app(app, origins=app.config['CORS_ORIGINS'])
+    
+    # Import models to ensure they're registered
+    from app.models import User, Property, Payment, Conversation, Message
     
     # Initialize Cloudinary only if credentials are provided
     if app.config['CLOUDINARY_CLOUD_NAME']:
