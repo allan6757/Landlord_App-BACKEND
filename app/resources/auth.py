@@ -1,14 +1,15 @@
 from flask_restful import Resource
 from flask import request, current_app, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
-from app import db
-from app.models import User
-from app.schemas.user import UserCreateSchema, UserSchema
 from marshmallow import ValidationError
 
 class Register(Resource):
     def post(self):
         try:
+            from app import db
+            from app.models import User
+            from app.schemas.user import UserCreateSchema, UserSchema
+            
             # Validate input data
             if not request.json:
                 return {'error': 'No JSON data provided'}, 400
@@ -52,6 +53,10 @@ class Register(Resource):
 class Login(Resource):
     def post(self):
         try:
+            from app import db
+            from app.models import User
+            from app.schemas.user import UserSchema
+            
             # Validate input
             if not request.json:
                 return {'error': 'No JSON data provided'}, 400
@@ -97,6 +102,9 @@ class Profile(Resource):
     @jwt_required()
     def get(self):
         try:
+            from app.models import User
+            from app.schemas.user import UserSchema
+            
             user_id = get_jwt_identity()
             user = User.query.get(user_id)
             
@@ -114,6 +122,10 @@ class Profile(Resource):
     @jwt_required()
     def put(self):
         try:
+            from app import db
+            from app.models import User
+            from app.schemas.user import UserSchema
+            
             user_id = get_jwt_identity()
             user = User.query.get(user_id)
             
