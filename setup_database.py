@@ -12,6 +12,11 @@ import os
 def create_sample_data():
     """Create sample users and data for testing"""
     
+    # Check if data already exists
+    if User.query.first():
+        print("⚠️  Sample data already exists. Skipping creation.")
+        return
+    
     # Create sample landlord
     landlord = User(
         email='landlord@example.com',
@@ -137,15 +142,17 @@ def main():
     with app.app_context():
         print("🔧 Setting up database...")
         
-        # Create all tables
-        db.create_all()
-        print("✅ Database tables created!")
-        
-        # Check if data already exists
-        if User.query.first():
-            print("⚠️  Sample data already exists. Skipping creation.")
-        else:
+        try:
+            # Create all tables
+            db.create_all()
+            print("✅ Database tables created!")
+            
+            # Create sample data
             create_sample_data()
+            
+        except Exception as e:
+            print(f"❌ Database setup error: {e}")
+            return
         
         print("\n🚀 Database setup complete!")
         print("You can now run: python run.py")
