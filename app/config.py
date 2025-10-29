@@ -70,7 +70,7 @@ class ProductionConfig(Config):
     BCRYPT_LOG_ROUNDS = 13
     
     # Production CORS settings
-    cors_origins = os.environ.get('CORS_ORIGINS', 'https://landlord-app-frontend.vercel.app')
+    cors_origins = os.environ.get('CORS_ORIGINS', 'https://landlord-app-frontend.vercel.app,http://localhost:3000')
     CORS_ORIGINS = cors_origins.split(',') if cors_origins != '*' else ['*']
     
 class TestingConfig(Config):
