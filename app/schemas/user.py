@@ -17,4 +17,4 @@ class UserCreateSchema(Schema):
     first_name = fields.Str(required=True, validate=validate.Length(min=1, max=50))
     last_name = fields.Str(required=True, validate=validate.Length(min=1, max=50))
     phone = fields.Str(validate=validate.Length(max=20), allow_none=True)
-    role = fields.Str(validate=validate.OneOf(['landlord', 'tenant']), missing='tenant')
+    role = fields.Str(validate=validate.OneOf(['landlord', 'tenant']), missing='tenant', allow_none=True)

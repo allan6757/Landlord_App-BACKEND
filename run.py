@@ -8,9 +8,11 @@ app = create_app()
 # Initialize database migration
 migrate = Migrate(app, db)
 
-# Create tables if they don't exist (for initial deployment)
+# Ensure app context is available
 with app.app_context():
     try:
+        # Import models to register them
+        from app.models import User, Property, Payment, Conversation, Message
         db.create_all()
         app.logger.info("Database tables created successfully")
     except Exception as e:
