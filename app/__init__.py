@@ -57,44 +57,69 @@ def create_app(config_class=None):
     
     # Register resources with error handling
     try:
-        from app.resources.auth import Register, Login, Profile
-        from app.resources.users import UserList, UserDetail, UserProfileImage
-        from app.resources.properties import PropertyList, PropertyDetail, PropertyImages
-        from app.resources.payments import PaymentList, PaymentDetail, PaymentCallback
-        from app.resources.chat import ConversationList, ConversationDetail, MessageList
-        from app.resources.dashboard import LandlordDashboard, TenantDashboard
-        
         # Authentication routes
+        from app.resources.auth import Register, Login, Profile
         api.add_resource(Register, '/api/auth/register')
         api.add_resource(Login, '/api/auth/login')
         api.add_resource(Profile, '/api/auth/profile')
+        app.logger.info("Auth routes registered")
         
+    except Exception as e:
+        app.logger.error(f"Failed to register auth routes: {e}")
+    
+    try:
         # User routes
+        from app.resources.users import UserList, UserDetail, UserProfileImage
         api.add_resource(UserList, '/api/users')
         api.add_resource(UserDetail, '/api/users/<int:user_id>')
         api.add_resource(UserProfileImage, '/api/users/profile-image')
+        app.logger.info("User routes registered")
         
+    except Exception as e:
+        app.logger.error(f"Failed to register user routes: {e}")
+    
+    try:
         # Property routes
+        from app.resources.properties import PropertyList, PropertyDetail, PropertyImages
         api.add_resource(PropertyList, '/api/properties')
         api.add_resource(PropertyDetail, '/api/properties/<int:property_id>')
         api.add_resource(PropertyImages, '/api/properties/<int:property_id>/images')
+        app.logger.info("Property routes registered")
         
+    except Exception as e:
+        app.logger.error(f"Failed to register property routes: {e}")
+    
+    try:
         # Payment routes
+        from app.resources.payments import PaymentList, PaymentDetail, PaymentCallback
         api.add_resource(PaymentList, '/api/payments')
         api.add_resource(PaymentDetail, '/api/payments/<int:payment_id>')
         api.add_resource(PaymentCallback, '/api/payments/callback')
+        app.logger.info("Payment routes registered")
         
+    except Exception as e:
+        app.logger.error(f"Failed to register payment routes: {e}")
+    
+    try:
         # Chat routes
+        from app.resources.chat import ConversationList, ConversationDetail, MessageList
         api.add_resource(ConversationList, '/api/conversations')
         api.add_resource(ConversationDetail, '/api/conversations/<int:conversation_id>')
         api.add_resource(MessageList, '/api/conversations/<int:conversation_id>/messages')
+        app.logger.info("Chat routes registered")
         
+    except Exception as e:
+        app.logger.error(f"Failed to register chat routes: {e}")
+    
+    try:
         # Dashboard routes
+        from app.resources.dashboard import LandlordDashboard, TenantDashboard
         api.add_resource(LandlordDashboard, '/api/dashboard/landlord')
         api.add_resource(TenantDashboard, '/api/dashboard/tenant')
+        app.logger.info("Dashboard routes registered")
         
-    except ImportError as e:
-        app.logger.error(f"Failed to import resources: {e}")
+    except Exception as e:
+        app.logger.error(f"Failed to register dashboard routes: {e}")
     
     api.init_app(app)
     
