@@ -132,10 +132,14 @@ def create_app(config_class=None):
             origin = request.headers.get('Origin')
             allowed_origins = flask_app.config.get('CORS_ORIGINS', ['*'])
             
-            if '*' in allowed_origins:
-                response.headers['Access-Control-Allow-Origin'] = '*'
-            elif origin and origin in allowed_origins:
+            # Set proper origin header
+            if origin and origin in allowed_origins:
                 response.headers['Access-Control-Allow-Origin'] = origin
+            elif '*' in allowed_origins:
+                response.headers['Access-Control-Allow-Origin'] = '*'
+            else:
+                # Default to the requesting origin if it's in our list
+                response.headers['Access-Control-Allow-Origin'] = origin or '*'
             
             response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization'
             response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST,DELETE,OPTIONS'
@@ -149,14 +153,12 @@ def create_app(config_class=None):
         origin = request.headers.get('Origin')
         allowed_origins = flask_app.config.get('CORS_ORIGINS', ['*'])
         
-        # Always set CORS headers
-        if '*' in allowed_origins:
-            response.headers['Access-Control-Allow-Origin'] = '*'
-        elif origin and origin in allowed_origins:
-            response.headers['Access-Control-Allow-Origin'] = origin
-        elif allowed_origins:
-            # Fallback to first allowed origin if no match
-            response.headers['Access-Control-Allow-Origin'] = allowed_origins[0]
+        # Only set CORS headers if not already set by preflight handler
+        if not response.headers.get('Access-Control-Allow-Origin'):
+            if origin and origin in allowed_origins:
+                response.headers['Access-Control-Allow-Origin'] = origin
+            elif '*' in allowed_origins:
+                response.headers['Access-Control-Allow-Origin'] = '*'
         
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization'
         response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST,DELETE,OPTIONS'

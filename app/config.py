@@ -43,7 +43,7 @@ class Config:
     if cors_origins == '*':
         CORS_ORIGINS = ['*']
     else:
-        CORS_ORIGINS = cors_origins.split(',')
+        CORS_ORIGINS = [origin.strip() for origin in cors_origins.split(',') if origin.strip()]
     
     # Optional Services (can be empty for local development)
     MPESA_CONSUMER_KEY = os.environ.get('MPESA_CONSUMER_KEY', '')
