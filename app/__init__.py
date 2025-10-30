@@ -35,7 +35,11 @@ def create_app(config_class=None):
     migrate.init_app(flask_app, db)
     bcrypt.init_app(flask_app)
     jwt.init_app(flask_app)
-    cors.init_app(flask_app, resources={r"/api/*": {"origins": flask_app.config['CORS_ORIGINS']}}, supports_credentials=True)
+    cors.init_app(flask_app, 
+                  resources={r"/api/*": {"origins": flask_app.config['CORS_ORIGINS']}}, 
+                  supports_credentials=True,
+                  allow_headers=['Content-Type', 'Authorization'],
+                  methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
     socketio.init_app(flask_app, cors_allowed_origins=flask_app.config['CORS_ORIGINS'])
     
     # Import models to ensure they're registered
@@ -119,17 +123,40 @@ def create_app(config_class=None):
             'environment': os.environ.get('FLASK_ENV', 'development')
         }), 200
     
-    # Handle OPTIONS requests for CORS
+    # Handle preflight OPTIONS requests
+    @flask_app.before_request
+    def handle_preflight():
+        from flask import request
+        if request.method == "OPTIONS":
+            response = jsonify({'status': 'ok'})
+            origin = request.headers.get('Origin')
+            allowed_origins = flask_app.config.get('CORS_ORIGINS', ['*'])
+            
+            if '*' in allowed_origins:
+                response.headers['Access-Control-Allow-Origin'] = '*'
+            elif origin and origin in allowed_origins:
+                response.headers['Access-Control-Allow-Origin'] = origin
+            
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization'
+            response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST,DELETE,OPTIONS'
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            return response
+    
+    # Handle CORS for all requests
     @flask_app.after_request
     def after_request(response):
         from flask import request
         origin = request.headers.get('Origin')
         allowed_origins = flask_app.config.get('CORS_ORIGINS', ['*'])
         
+        # Always set CORS headers
         if '*' in allowed_origins:
             response.headers['Access-Control-Allow-Origin'] = '*'
         elif origin and origin in allowed_origins:
             response.headers['Access-Control-Allow-Origin'] = origin
+        elif allowed_origins:
+            # Fallback to first allowed origin if no match
+            response.headers['Access-Control-Allow-Origin'] = allowed_origins[0]
         
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization'
         response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST,DELETE,OPTIONS'
