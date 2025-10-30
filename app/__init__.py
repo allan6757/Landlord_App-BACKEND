@@ -122,11 +122,15 @@ def create_app(config_class=None):
     # Handle OPTIONS requests for CORS
     @flask_app.after_request
     def after_request(response):
-        origin = flask_app.config.get('CORS_ORIGINS', ['*'])
-        if origin != ['*']:
-            response.headers['Access-Control-Allow-Origin'] = origin[0] if origin else '*'
-        else:
+        from flask import request
+        origin = request.headers.get('Origin')
+        allowed_origins = flask_app.config.get('CORS_ORIGINS', ['*'])
+        
+        if '*' in allowed_origins:
             response.headers['Access-Control-Allow-Origin'] = '*'
+        elif origin and origin in allowed_origins:
+            response.headers['Access-Control-Allow-Origin'] = origin
+        
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization'
         response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST,DELETE,OPTIONS'
         response.headers['Access-Control-Allow-Credentials'] = 'true'

@@ -1,20 +1,62 @@
+# ============================================================================
+# PROPERTY MODEL - Property Management
+# ============================================================================
+# Defines Property model for rental property listings
+#
+# REQUIRED FIELDS:
+# - title: Property name/title
+# - monthly_rent: Monthly rental amount
+# - status: Property status (occupied/vacant)
+# - landlord_id: Owner's user ID (foreign key)
+#
+# OPTIONAL FIELDS:
+# - tenant_id: Current tenant's user ID (null if vacant)
+# - address, city, state, zip_code: Location details
+# - property_type: apartment/house/condo/townhouse
+# - bedrooms, bathrooms, square_feet: Property specs
+# - images: Array of Cloudinary image URLs
+#
+# API RESPONSE FORMAT:
+# {
+#   "id": 1,
+#   "title": "Modern Apartment",
+#   "monthly_rent": 1500.00,
+#   "status": "occupied",
+#   "landlord_id": 2,
+#   "tenant_id": 3
+# }
+#
+# USAGE:
+# property = Property(
+#   title='Apartment',
+#   monthly_rent=1500,
+#   status='vacant',
+#   landlord_id=user.id
+# )
+# db.session.add(property)
+# db.session.commit()
+# ============================================================================
+
 from .base import BaseModel, db
 from sqlalchemy.dialects.postgresql import ENUM
 import enum
 
 class PropertyStatus(enum.Enum):
-    AVAILABLE = 'available'
-    OCCUPIED = 'occupied'
+    """Property availability status"""
+    AVAILABLE = 'available'  # Also treated as 'vacant'
+    OCCUPIED = 'occupied'    # Has active tenant
     MAINTENANCE = 'maintenance'
     UNAVAILABLE = 'unavailable'
 
 class PropertyType(enum.Enum):
+    """Property type classification"""
     APARTMENT = 'apartment'
     HOUSE = 'house'
     CONDO = 'condo'
     TOWNHOUSE = 'townhouse'
 
 class Property(BaseModel):
+    """Property model for rental listings"""
     __tablename__ = 'properties'
 
     title = db.Column(db.String(200), nullable=False)
@@ -45,6 +87,9 @@ class Property(BaseModel):
     conversations = db.relationship('Conversation', back_populates='property')
 
     def to_dict(self):
+        """Serialize property to dictionary for API responses
+        Returns all property details including landlord and tenant info
+        """
         return {
             'id': self.id,
             'title': self.title,
@@ -54,7 +99,7 @@ class Property(BaseModel):
             'state': self.state,
             'zip_code': self.zip_code,
             'property_type': self.property_type.value if self.property_type else None,
-            'status': self.status.value if self.status else None,
+            'status': self.status.value if self.status else None,  # 'occupied' or 'vacant'
             'monthly_rent': float(self.monthly_rent) if self.monthly_rent else None,
             'security_deposit': float(self.security_deposit) if self.security_deposit else None,
             'bedrooms': self.bedrooms,
@@ -62,8 +107,8 @@ class Property(BaseModel):
             'square_feet': self.square_feet,
             'amenities': self.amenities,
             'images': self.images or [],
-            'landlord_id': self.landlord_id,
-            'tenant_id': self.tenant_id,
+            'landlord_id': self.landlord_id,  # Property owner
+            'tenant_id': self.tenant_id,      # Current tenant (null if vacant)
             'landlord': self.landlord.to_dict() if self.landlord else None,
             'tenant': self.tenant.to_dict() if self.tenant else None,
             'lease_start': self.lease_start.isoformat() if self.lease_start else None,

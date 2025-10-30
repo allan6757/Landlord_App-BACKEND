@@ -1,3 +1,45 @@
+# ============================================================================
+# AUTHENTICATION ENDPOINTS - User Registration and Login
+# ============================================================================
+# JWT-based authentication with role-based access control
+#
+# ENDPOINTS:
+# POST /api/auth/register - Register new user
+# POST /api/auth/login - Login and get JWT token
+# GET /api/auth/profile - Get current user profile (requires JWT)
+# PUT /api/auth/profile - Update user profile (requires JWT)
+#
+# REGISTER REQUEST:
+# {
+#   "email": "user@example.com",
+#   "password": "secure_password",
+#   "first_name": "John",
+#   "last_name": "Doe",
+#   "role": "tenant"  // or "landlord"
+# }
+#
+# LOGIN REQUEST:
+# {
+#   "email": "user@example.com",
+#   "password": "secure_password"
+# }
+#
+# RESPONSE:
+# {
+#   "token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+#   "user": {
+#     "id": 1,
+#     "email": "user@example.com",
+#     "first_name": "John",
+#     "profile": {"id": 1, "role": "tenant"}
+#   }
+# }
+#
+# AUTHENTICATION:
+# Include JWT token in all protected requests:
+# Authorization: Bearer <token>
+# ============================================================================
+
 from flask_restful import Resource
 from flask import request, current_app
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
@@ -5,6 +47,7 @@ from marshmallow import ValidationError
 from app.utils.errors import AuthError, create_error_response, create_success_response
 
 class Register(Resource):
+    """User registration endpoint - Creates new user account"""
     def post(self):
         try:
             from app import db
@@ -42,12 +85,12 @@ class Register(Resource):
             db.session.add(user)
             db.session.commit()
             
-            # Generate token
+            # Generate JWT token (expires in 24 hours by default)
             token = create_access_token(identity=user.id)
             
             return create_success_response({
-                'token': token,
-                'user': UserSchema().dump(user)
+                'token': token,  # JWT token for authentication
+                'user': UserSchema().dump(user)  # User data with profile.role
             }, "Account created successfully", 201)
             
         except ValidationError as err:
@@ -66,6 +109,7 @@ class Register(Resource):
             )
 
 class Login(Resource):
+    """User login endpoint - Authenticates user and returns JWT token"""
     def post(self):
         try:
             from app import db
@@ -107,12 +151,12 @@ class Login(Resource):
                     403
                 )
             
-            # Generate token
+            # Generate JWT token for authenticated session
             token = create_access_token(identity=user.id)
             
             return create_success_response({
-                'token': token,
-                'user': UserSchema().dump(user)
+                'token': token,  # Store this token in frontend (localStorage/cookies)
+                'user': UserSchema().dump(user)  # User data with profile.role
             }, "Login successful")
             
         except Exception as e:
@@ -124,6 +168,7 @@ class Login(Resource):
             )
 
 class Profile(Resource):
+    """User profile endpoint - Get and update current user profile"""
     @jwt_required()
     def get(self):
         try:

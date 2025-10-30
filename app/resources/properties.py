@@ -1,3 +1,44 @@
+# ============================================================================
+# PROPERTY ENDPOINTS - Property Management
+# ============================================================================
+# CRUD operations for rental properties with role-based filtering
+#
+# ENDPOINTS:
+# GET /api/properties - List properties (filtered by user role)
+# POST /api/properties - Create property (landlord only)
+# GET /api/properties/<id> - Get property details
+# PUT /api/properties/<id> - Update property (owner only)
+# DELETE /api/properties/<id> - Delete property (owner only)
+#
+# ROLE-BASED FILTERING:
+# - Landlord: Returns properties they own (landlord_id = user.id)
+# - Tenant: Returns properties assigned to them (tenant_id = user.id)
+# - Admin: Returns all properties
+#
+# RESPONSE FORMAT:
+# {
+#   "properties": [
+#     {
+#       "id": 1,
+#       "title": "Modern Apartment",
+#       "monthly_rent": 1500.00,
+#       "status": "occupied",  // or "vacant"
+#       "landlord_id": 2,
+#       "tenant_id": 3
+#     }
+#   ]
+# }
+#
+# CREATE PROPERTY REQUEST:
+# {
+#   "title": "Modern Apartment",
+#   "address": "123 Main St",
+#   "city": "Nairobi",
+#   "monthly_rent": 1500.00,
+#   "status": "vacant"
+# }
+# ============================================================================
+
 from flask_restful import Resource
 from flask import request
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -7,25 +48,36 @@ from app.utils.cloudinary import upload_image, delete_image
 from marshmallow import ValidationError
 
 class PropertyList(Resource):
-    @jwt_required()
+    """Property list endpoint - Get all properties or create new property"""
+    @jwt_required()  # Requires JWT token in Authorization header
     def get(self):
-        user_id = get_jwt_identity()
+        """Get properties filtered by user role
+        Landlords see their properties, tenants see assigned properties
+        """
+        user_id = get_jwt_identity()  # Extract user ID from JWT token
         user = User.query.get_or_404(user_id)
 
+        # Filter properties based on user role
         if user.role == 'landlord':
+            # Landlords see properties they own
             properties = Property.query.filter_by(landlord_id=user.id).all()
         elif user.role == 'tenant':
+            # Tenants see properties assigned to them
             properties = Property.query.filter_by(tenant_id=user.id).all()
         else:
+            # Admins see all properties
             properties = Property.query.all()
 
+        # Return properties array as expected by frontend
         return {'properties': [prop.to_dict() for prop in properties]}, 200
 
-    @jwt_required()
+    @jwt_required()  # Requires JWT token
     def post(self):
+        """Create new property - Landlord only"""
         user_id = get_jwt_identity()
         user = User.query.get_or_404(user_id)
 
+        # Only landlords can create properties
         if user.role != 'landlord':
             return {'error': 'Only landlords can create properties'}, 403
 
@@ -58,6 +110,7 @@ class PropertyList(Resource):
         return {'property': property.to_dict()}, 201
 
 class PropertyDetail(Resource):
+    """Property detail endpoint - Get, update, or delete specific property"""
     @jwt_required()
     def get(self, property_id):
         user_id = get_jwt_identity()
@@ -122,6 +175,7 @@ class PropertyDetail(Resource):
         return False
 
 class PropertyImages(Resource):
+    """Property images endpoint - Upload images to Cloudinary"""
     @jwt_required()
     def post(self, property_id):
         user_id = get_jwt_identity()
