@@ -13,7 +13,6 @@ eventlet==0.33.3
 # Database
 SQLAlchemy==2.0.36
 psycopg[binary]==3.2.12
-psycopg2-binary==2.9.7
 
 # Serialization & Validation
 marshmallow==3.20.1
