@@ -2,7 +2,7 @@ services:
   - type: web
     name: landlord-app-backend
     env: python
-    buildCommand: pip install -r requirements_minimal.txt
+    buildCommand: pip install Flask==2.3.3 gunicorn==21.2.0
     startCommand: gunicorn --bind 0.0.0.0:$PORT main:app
     envVars:
       - key: FLASK_ENV
